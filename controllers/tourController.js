@@ -2,37 +2,51 @@ const Tour = require('./../models/tourModel');
 
 exports.getAllTours = async (req, res) => {
   try {
-    //building query
-    //1A)filtering
+    console.log(req.query);
+
+    //build query
+    // 1)Filtering
     const queryObj = { ...req.query };
-    const excludedfields = ['page', 'sort', 'limit', 'fields'];
-    excludedfields.forEach((el) => delete queryObj[el]);
+    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    excludedFields.forEach((el) => delete queryObj[el]);
 
-    //1B)advance filtering
-    let querystr = JSON.stringify(queryObj);
-    querystr = querystr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
-    console.log(JSON.parse(querystr));
+    // 2)Advance Filtering
+    let queryStr = JSON.stringify(queryObj);
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+    //console.log(JSON.parse(queryStr));
 
-    let query = Tour.find(JSON.parse(querystr));
+    let query = Tour.find(JSON.parse(queryStr));
 
-    //2)Sorting
+    //{ difficulty: 'easy', duration : { $gte: 5 } }
+    //{ difficulty: 'easy', duration: { gte: '5' } }
+
+    // 3)Sorting
+
     if (req.query.sort) {
       const sortBy = req.query.sort.split(',').join(' ');
-      console.log(sortBy);
       query = query.sort(sortBy);
     } else {
       query = query.sort('-createdAt');
     }
 
-    // const tours = await Tour.find()
-    //   .where('duration')
-    //   .equals(5)
-    //   .where('difficulty')
-    //   .equals('easy');
+    // 4)field limiting
+    if (req.query.fields) {
+      const fields = req.query.fields.split(',').join(' ');
+      query = query.select(fields);
+    } else {
+      query = await query.select('-__v');
+    }
 
-    //executing query
+    // 5)paging
+    const page = req.query.page * 1 || 1;
+    const limit = req.query.limit * 1 || 100;
+    const skip = (page - 1) * limit;
+
+    query = query.skip(6);
+    console.log(JSON.parse(query));
+    //execute the query
     const tours = await query;
-
+    //send response
     res.status(200).json({
       status: 'success',
       results: tours.length,
