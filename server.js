@@ -3,8 +3,6 @@ const mongoose = require('mongoose');
 dotenv.config({ path: './config.env' });
 const app = require('./app');
 
-//process.env.NODE_ENV = 'production';
-
 dotenv.config({ path: './config.env' });
 //console.log(process.env);
 

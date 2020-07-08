@@ -25,7 +25,7 @@ const sendErrorProd = (err, res) => {
     // Programming or other unknown error: don't leak error details
   } else {
     // 1) Log error
-    console.error('ERROR 💥', err);
+    console.error('ERROR ', err);
 
     // 2) Send generic message
     res.status(500).json({
@@ -43,16 +43,14 @@ module.exports = (err, req, res, next) => {
 
   if (process.env.NODE_ENV === 'development') {
     sendErrorDev(err, res);
-    // let error = { ...err };
-
-    // if (error.name === 'CastError') error = handleCastErrorDB(error);
-
-    // sendErrorProd(error, res);
   } else if (process.env.NODE_ENV === 'production') {
-    let error = { ...err };
+    let error = err;
+    Reflect.setPrototypeOf(error, Reflect.getPrototypeOf(err));
+    const errorName = JSON.stringify(error.name);
 
     if (error.name === 'CastError') error = handleCastErrorDB(error);
 
     sendErrorProd(error, res);
   }
+  next();
 };
