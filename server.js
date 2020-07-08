@@ -20,3 +20,8 @@ app.listen(port, () => {
   console.log(`App is runnig on port ${port}...`);
 });
 
+process.on('SIGTERM', () => {
+  server.close(() => {
+    console.log('Process terminated');
+  });
+});
