@@ -1,8 +1,10 @@
 const { promisify } = require('util');
+const crypto = require('crypto');
 const User = require('./../models/userModel');
 const jwt = require('jsonwebtoken');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('./../utils/appError');
+const sendEmail = require('./../utils/email');
 const { decode } = require('punycode');
 
 const signToken = (id) => {
@@ -15,6 +17,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
+    role: req.body.role,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
     passwordChangedAt: req.body.passwordChangedAt,
@@ -87,5 +90,72 @@ exports.protect = catchAsync(async (req, res, next) => {
   }
 
   //grant access to protected route
+  req.user = freshUser;
   next();
 });
+
+exports.restrictTo = (...roles) => {
+  //roles has 'admin' & 'lead-guide' and req.user.role=user
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(
+        new AppError('You do not have permission to perform this action', 403)
+      );
+    }
+    next();
+  };
+};
+
+exports.forgetPassword = catchAsync(async (req, res, next) => {
+  //1) get user's email addres
+  const user = await User.findOne({ email: req.body.email });
+  if (!user) {
+    return next(
+      new AppError('User with this email address does not exist', 404)
+    );
+  }
+
+  //2) geneate random token
+  const resetToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  //3) send token on given email address
+  const resetURL = `${req.protocol}://${req.get(
+    'host'
+  )}/api/v1/users/resetPassword/${resetToken}`;
+
+  const message = `Forgot your password? Submit a PATCH req with your password and password confirm to: ${resetURL}.\nIf you did not send forget password, please ignore this message`;
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Your password reset token(valid for 10 min)',
+      message,
+    });
+    console.log('try block');
+    res.status(200).json({
+      status: 'sucsess',
+      message: 'Token send to email',
+    });
+  } catch (err) {
+    console.log(err);
+    user.passwordResetToken = undefined;
+    user.passwordExpiresAt = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return next(new AppError('There was an error sending email', 500));
+  }
+});
+
+exports.resetPassword = (req, res, next) => {
+  // 1)Get the user based on token
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(req.params.token)
+    .digest('hex');
+
+  const user = User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+};
