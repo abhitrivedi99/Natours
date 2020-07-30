@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     validate: [validator.isEmail, 'Please enter valid Email'],
   },
-  photo: { type: String },
+  photo: { type: String, default: 'default.jpg' },
   role: {
     type: String,
     enum: ['admin', 'user', 'guide', 'lead-guide'],
@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema({
   },
   passwordResetToken: { type: String },
   passwordResetExpiresAt: { type: Date },
+  active: {
+    type: Boolean,
+    default: true,
+    select: false,
+  },
 });
 
 userSchema.pre('save', async function (next) {
@@ -53,6 +58,11 @@ userSchema.pre('save', async function (next) {
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
+  next();
+});
+
+userSchema.pre(/^find/, function (next) {
+  this.find({ active: { $ne: false } });
   next();
 });
 

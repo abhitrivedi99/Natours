@@ -1,5 +1,9 @@
 const express = require('express');
 const morgan = require('morgan');
+const logger = require('morgan');
+const path = require('path');
+const bodyparser = require('body-parser');
+const cookieParser = require('cookie-parser');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -15,6 +19,12 @@ if (process.env.NODE_ENV === 'development') {
 
 app.use(express.json());
 app.use(express.static(`${__dirname}/public`));
+
+app.use(logger('dev'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
   req.requestTime = new Date().toISOString();
