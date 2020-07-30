@@ -141,7 +141,7 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
   } catch (err) {
     console.log(err);
     user.passwordResetToken = undefined;
-    user.passwordExpiresAt = undefined;
+    user.passwordResetExpiresAt = undefined;
     await user.save({ validateBeforeSave: false });
 
     return next(new AppError('There was an error sending email', 500));
@@ -157,7 +157,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 
   const user = await User.findOne({
     passwordResetToken: hashedToken,
-    passwordResetExpires: { $gt: Date.now() },
+    passwordResetExpiresAt: { $gt: Date.now() },
   });
 
   // 2) if token has not expired, and there is user, set the new password
@@ -167,7 +167,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
   user.passwordResetToken = undefined;
-  user.passwordResetExpires = undefined;
+  user.passwordResetExpiresAt = undefined;
   await user.save();
 
   // 3) Update changePasswordAt property for the user
